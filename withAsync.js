@@ -6,8 +6,8 @@ const dbConfig = {
     host: '127.0.0.1',
     port: '3306',
     user: 'root',
-    password: 'mmPSW@1412',
-    database: 'hcoolairconservices'
+    password: 'password',
+    database: 'testdb'
 };
 
 
@@ -88,6 +88,21 @@ async function importData() {
                         };
                         const contactRes = await connection.query('INSERT INTO contacts SET ?', contact);
                         console.log('Contact:', contactRes)
+                    }
+                    if (record?.secondaryContacts?.length > 0) {
+                        for (const secondary of record?.secondaryContacts) {
+                            const secondaryObj = {
+                                name: secondary?.name || 'N/A',
+                                phone: secondary?.phones[0]?.number || 'N/A',
+                                email: null,
+                                is_primary: 0,
+                                created_at: new Date(record?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
+                                updated_at: new Date(record?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
+                                client_id: clientId
+                            };
+                            const secondaryContactRes = await connection.query('INSERT INTO contacts SET ?', secondaryObj);
+                            console.log('Contact:', secondaryContactRes)
+                        }
                     }
                 }
             }
