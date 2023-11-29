@@ -14,16 +14,32 @@ const dbConfig = {
 // Sample data to insert into the database
 const dataToInsert = clients.map(client => {
     return {
-        name: client?.displayFullName || null,
-        type: client?.clientType || null,
-        address: `${client?.serviceAddress?.address1}, ${client?.serviceAddress?.address2}, ${client?.serviceAddress?.pinCode}, ${client?.serviceAddress?.country}` || null,
-        billing_address: `${client?.billingAddress?.address1}, ${client?.billingAddress?.address2}, ${client?.billingAddress?.pinCode}, ${client?.billingAddress?.country}` || null,
-        postal_code: client?.serviceAddress?.pinCode || null,
-        parent_id: null,
-        created_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
-        updated_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' ')
+        ...client,
+        subClients: client?.locations?.map(location => {
+            return {
+                name: location?.locationName || null,
+                type: client?.clientType || null,
+                address: `${location?.serviceAddress?.address1}, ${location?.serviceAddress?.address2}, ${location?.serviceAddress?.pinCode}, ${location?.serviceAddress?.country}` || null,
+                billing_address: `${location?.billingAddress?.address1}, ${location?.billingAddress?.address2}, ${location?.billingAddress?.pinCode}, ${location?.billingAddress?.country}` || null,
+                postal_code: location?.serviceAddress?.pinCode || null,
+                parent_id: null,
+                created_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
+                updated_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' ')
+            }
+        }),
+        clientRecord: {
+            name: client?.displayFullName || null,
+            type: client?.clientType || null,
+            address: `${client?.serviceAddress?.address1}, ${client?.serviceAddress?.address2}, ${client?.serviceAddress?.pinCode}, ${client?.serviceAddress?.country}` || null,
+            billing_address: `${client?.billingAddress?.address1}, ${client?.billingAddress?.address2}, ${client?.billingAddress?.pinCode}, ${client?.billingAddress?.country}` || null,
+            postal_code: client?.serviceAddress?.pinCode || null,
+            parent_id: null,
+            created_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
+            updated_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' ')
+        }
     }
 });
+
 
 async function importData() {
     // Create a connection pool
@@ -31,43 +47,47 @@ async function importData() {
 
     try {
         const connection = await pool.getConnection();
-
         // Use a transaction for better consistency
         await connection.beginTransaction();
-
         try {
             // Insert data into the database
             for (const record of dataToInsert) {
-                const client = await connection.query('INSERT INTO clients SET ?', record);
+                const client = await connection.query('INSERT INTO clients SET ?', record?.clientRecord);
                 // console.log('Client:', client);
                 const clientId = client[0]?.insertId;
                 console.log('ClientID:', clientId);
                 if (clientId) {
-                    if (client?.serviceAddress) {
+                    if (record?.subClients?.length > 0) {
+                        for (const subRecord of record.subClients) {
+                            const subClient = await connection.query('INSERT INTO clients SET ?', { ...subRecord, parent_id: clientId });
+                        }
+                    }
+                    if (record?.serviceAddress?.name) {
                         const address = {
-                            name: client?.serviceAddress?.name,
+                            name: record?.serviceAddress?.name,
                             phone: null,
-                            postal_code: client?.serviceAddress?.pinCode,
-                            address: `${client?.serviceAddress?.address1}, ${client?.serviceAddress?.address2}, ${client?.serviceAddress?.pinCode}, ${client?.serviceAddress?.country}`,
+                            postal_code: record?.serviceAddress?.pinCode,
+                            address: `${record?.serviceAddress?.address1}, ${record?.serviceAddress?.address2}, ${record?.serviceAddress?.pinCode}, ${record?.serviceAddress?.country}`,
                             client_id: clientId,
-                            created_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
-                            updated_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' ')
+                            created_at: new Date(record?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
+                            updated_at: new Date(record?.createdTime).toISOString().slice(0, 19).replace('T', ' ')
                         };
-                        await connection.query('INSERT INTO addresses SET ?', address);
+                        const addressRes = await connection.query('INSERT INTO addresses SET ?', address);
+                        console.log('address:', addressRes)
                     }
 
-                    if (client?.primaryContact) {
-                        const insertContactSql = 'INSERT INTO contacts (name, phone, email, is_primary, created_at, updated_at, client_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
+                    if (record?.primaryContact?.name) {
                         const contact = {
-                            name: client?.primaryContact?.name,
-                            phone: client?.primaryContact?.phones[0]?.number,
+                            name: record?.primaryContact?.name || 'N/A',
+                            phone: record?.primaryContact?.phones[0]?.number || 'N/A',
                             email: null,
                             is_primary: 1,
-                            created_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
-                            updated_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
+                            created_at: new Date(record?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
+                            updated_at: new Date(record?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
                             client_id: clientId
                         };
-                        await connection.query('INSERT INTO contacts SET ?', contact);
+                        const contactRes = await connection.query('INSERT INTO contacts SET ?', contact);
+                        console.log('Contact:', contactRes)
                     }
                 }
             }

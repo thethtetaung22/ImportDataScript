@@ -1,0 +1,35 @@
+// Insert data into the database
+            for (const record of dataToInsert) {
+                const client = await connection.query('INSERT INTO clients SET ?', record);
+                // console.log('Client:', client);
+                const clientId = client[0]?.insertId;
+                console.log('ClientID:', clientId);
+                if (clientId) {
+                    if (client?.serviceAddress) {
+                        const address = {
+                            name: client?.serviceAddress?.name,
+                            phone: null,
+                            postal_code: client?.serviceAddress?.pinCode,
+                            address: `${client?.serviceAddress?.address1}, ${client?.serviceAddress?.address2}, ${client?.serviceAddress?.pinCode}, ${client?.serviceAddress?.country}`,
+                            client_id: clientId,
+                            created_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
+                            updated_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' ')
+                        };
+                        await connection.query('INSERT INTO addresses SET ?', address);
+                    }
+
+                    if (client?.primaryContact) {
+                        // const insertContactSql = 'INSERT INTO contacts (name, phone, email, is_primary, created_at, updated_at, client_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
+                        const contact = {
+                            name: client?.primaryContact?.name,
+                            phone: client?.primaryContact?.phones[0]?.number,
+                            email: null,
+                            is_primary: 1,
+                            created_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
+                            updated_at: new Date(client?.createdTime).toISOString().slice(0, 19).replace('T', ' '),
+                            client_id: clientId
+                        };
+                        await connection.query('INSERT INTO contacts SET ?', contact);
+                    }
+                }
+            }

@@ -1,0 +1,20 @@
+const client = clients[0];
+console.log(client)
+const payload = {
+    clientName: client?.displayFullName,
+    type: client?.clientType,
+    postal_code: client?.serviceAddress?.pinCode,
+    address: `${client?.serviceAddress?.address1}, ${client?.serviceAddress?.address2}, ${client?.serviceAddress?.pinCode}, ${client?.serviceAddress?.country}`
+}
+console.log('Filters:', [...Object.values(payload)]);
+const findClient = await connection.query('SELECT * FROM clients WHERE name = ? AND type = ? AND postal_code = ? AND address = ?', [...Object.values(payload)]);
+const client = clients[0];
+console.log(client)
+const payload = {
+    clientName: client?.displayFullName,
+    type: client?.clientType,
+    postal_code: client?.serviceAddress?.pinCode,
+    address: `${client?.serviceAddress?.address1}, ${client?.serviceAddress?.address2}, ${client?.serviceAddress?.pinCode}, ${client?.serviceAddress?.country}`
+}
+console.log('Filters:', [...Object.values(payload)]);
+const findClient = await connection.query('SELECT * FROM clients WHERE name = ? AND type = ? AND postal_code = ? AND address = ?', [...Object.values(payload)]);
